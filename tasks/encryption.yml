@@ -1,0 +1,191 @@
+---
+- name: "Certificate generation block"
+  block:
+    - name: 'Query server certificate authorities including intermediates (I: "{{ instance.name }}")'
+      ansible.builtin.command:
+        cmd: '/usr/sbin/dsctl urania tls list-ca'
+      register: ca_db_list
+      changed_when: false
+
+    - name: 'Copy ca files (I: "{{ instance.name }}")'
+      ansible.builtin.copy:
+        src: '{{ item }}'
+        dest: '/etc/dirsrv/slapd-{{ instance.name }}/certs/'
+        owner: root
+        group: root
+        mode: 0644
+        force: false
+      loop: '{{ instance.encryption.ca_files }}'
+      when: instance.encryption.ca_files is defined
+
+    - name: 'Query CA authority files (I: "{{ instance.name }}")'
+      ansible.builtin.find:
+        paths: '/etc/dirsrv/slapd-{{ instance.name }}/certs/'
+        patterns: '*.cer'
+      register: ca_file_list
+
+    - name: 'Add missing CA authorities to certificate db (I: "{{ instance.name }}")'
+      ansible.builtin.command:
+        cmd: '/usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} security ca-certificate add --file /etc/dirsrv/slapd-{{ instance.name }}/certs/{{ item }} --name "{{ item }}"'
+      loop: "{{ ca_file_list.files | map(attribute='path') | map('basename') | list | difference(ca_db_list.stdout_lines) }}"
+
+
+    - name: 'Check if server certificate is valid for the next {{ instance.encryption.certificate.renew_before_exp_days }} days (I: "{{ instance.name }}")'
+      ansible.builtin.shell:
+        cmd: "/usr/bin/certutil -V -l -d '/etc/dirsrv/slapd-{{ instance.name }}' -n Server-Cert -u C -b {{ lookup('pipe','/usr/bin/date -d \"+' + ( instance.encryption.certificate.renew_before_exp_days | string) + ' days\" --utc +%y%m%d%H%M%S') }}Z"
+      register: cert_validation
+      changed_when: false
+      failed_when:
+        - cert_validation.rc != 0
+        - cert_validation.rc != 255
+
+    - name: 'Initialize facts for certificate status'
+      ansible.builtin.set_fact:
+        no_certificate: "{{ (cert_validation.rc == 255) and (cert_validation.stderr is match('certutil. could not find certificate named \"Server-Cert\". PR_FILE_NOT_FOUND_ERROR. File not found')) }}"
+        expired_certificate: "{{ (cert_validation.rc == 255) and (cert_validation.stderr is match('Server-Cert . Peer.s Certificate has expired.')) }}"
+
+    - name: "Generate signing request"
+      block:
+        - name: 'Generate certificate signing request (I: "{{ instance.name }}")'
+          ansible.builtin.command:
+            cmd: 'dsctl {{ instance.name }} tls generate-server-cert-csr --subject "{{ instance.encryption.certificate.subject }}" {{ instance.encryption.certificate.alternates | join(",") }}'
+            creates: '/etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.csr'
+          register: csr_written
+
+        - name: 'Pause until Certificate Signing request is written to disk (I: "{{ instance.name }}")'
+          ansible.builtin.pause:
+            seconds: 120
+          when: csr_written.changed
+
+        - name: 'Get file information from CSR (I: "{{ instance.name }}")'
+          ansible.builtin.stat:
+            path: '/etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.csr'
+          register: csr_fileinfo
+
+        - name: 'Copy CSR to ansible master (I: "{{ instance.name }}")'
+          ansible.builtin.fetch:
+            src: '/etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.csr'
+            dest: '{{ instance.encryption.directory_certs }}/{{ inventory_hostname }}/{{ instance.name }}/Server-Cert_{{ csr_fileinfo.stat.ctime | int }}.csr'
+            flat: true
+          when:
+            - not csr_fileinfo.failed
+            - csr_fileinfo.stat.exists == true
+          register: copy_csr
+
+        - name: 'Submit Certificate Signing Request (I: "{{ instance.name }}")'
+          ansible.builtin.shell:
+            cmd: '{{ instance.encryption.request_certscript }} {{ instance.encryption.directory_certs }}/{{ inventory_hostname }}/{{ instance.name }}/Server-Cert_{{ csr_fileinfo.stat.ctime | int }}.csr'
+          when: copy_csr.changed
+          delegate_to: localhost
+
+        - name: 'Get signed certificate (I: "{{ instance.name }}")'
+          ansible.buildin.shell:
+            cmd: '{{ instance.encryption.get_certscript }} {{ instance.encryption.directory_certs }}/{{ inventory_hostname }}/{{ instance.name }}/Server-Cert_{{ csr_fileinfo.stat.ctime | int }}.csr'
+          register: get_cer
+          delegate_to: localhost
+          changed_when: get_cer.rc == 0
+          failed_when: 
+            - get_cer.rc != 0
+            - get_cer.rc != 1
+
+        - name: "Add Certificate to DB"
+          block:
+            - name: 'Copy certificate file with owner and permissions (I: "{{ instance.name }}")'
+              ansible.builtin.copy:
+                src: '{{ instance.encryption.directory_certs }}/{{ inventory_hostname }}/{{ instance.name }}/Server-Cert_{{ csr_fileinfo.stat.ctime | int }}.cer'
+                dest: '/etc/dirsrv/slapd-{{ instance.name }}//Server-Cert.cer'
+                owner: dirsrv
+                group: root
+                mode: '0660'
+              when: get_cer is defined and get_cer.rc is defined and get_cer.rc == 0
+              register: copy_cer
+
+            - name: 'Add certificate to certdb (I: "{{ instance.name }}")'
+              ansible.builtin.command:
+                cmd: '/usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} security certificate add --file /etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.cer --name "Server-Cert" --primary-cert'
+              when: copy_cer is defined and copy_cer.changed is defined and copy_cer.changed
+              register: cert2db
+
+            - name: 'Remove CSR file (I: "{{ instance.name }}")'
+              ansible.builtin.file:
+                path: '/etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.csr'
+                state: absent
+              when: cert2db is defined and cert2db.changed is defined and cert2db.changed
+
+            - name: 'Reinitialize facts for certificate status'
+              ansible.builtin.set_fact:
+                no_certificate: false
+                expired_certificate: false
+              when: cert2db.changed
+
+          when: get_cer is defined and get_cer.rc is defined and get_cer.rc == 0
+
+      when: no_certificate or expired_certificate
+
+  when:
+    - instance.encryption.selfsigned_certs is defined
+    - instance.encryption.selfsigned_certs == false
+
+
+- name: 'Add encryption method RSA (I: "{{ instance.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=RSA,cn=encryption,cn=config'
+    objectClass:
+      - top
+      - nsEncryptionModule
+    attributes:
+      nsSSLToken: "internal (software)"
+      nsSSLPersonalitySSL: "Server-Cert"
+      nsSSLActivation: "on"
+      cn: "RSA"
+
+- name: 'Apply encryption settings (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=encryption,cn=config'
+    name: '{{ encryption.key }}'
+    values: '{{ encryption.value }}'
+    state: present
+  loop: "{{ lookup('dict', instance.encryption.attributes | default({}), wantlist=True) }}"
+  loop_control:
+    loop_var: encryption
+  when: instance.encryption.attributes is defined
+
+- name: 'Set secure port (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=config'
+    name: 'nsslapd-securePort'
+    values: "{{ instance.secure_port | default('636') }}"
+    state: exact
+  register: result_setsecureport
+  when:
+    - no_certificate == false
+
+- name: 'Enable/Disable TLS (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=config'
+    name: 'nsslapd-security'
+    values: "{{ instance.tls }}"
+    state: exact
+  register: result_enabletls
+  when:
+    - instance.tls is defined
+    - no_certificate == false
+
+- name: 'Restart Directory service instance after enabling TLS (I: "{{ instance.name }}")'
+  ansible.builtin.service:
+    name: 'dirsrv@{{ instance.name }}'
+    state: restarted
+  when:
+    - result_enabletls.changed or result_setsecureport.changed

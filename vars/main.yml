@@ -1,0 +1,5 @@
+---
+# role defaults for ds
+ds_replication_user: 'cn=replication manager,cn=config'
+
+ds_dm_dn: 'cn=Directory Manager'

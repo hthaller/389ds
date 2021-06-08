@@ -1,0 +1,62 @@
+---
+
+- name: 'Apply plugin configuration for plugin "{{ plugin.name }}" (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
+    name: '{{ plugin_attributes.key }}'
+    values: '{{ plugin_attributes.value }}'
+    state: exact
+  loop: "{{ lookup('dict', plugin.attributes | default({}), wantlist=True) }}"
+  loop_control:
+    loop_var: plugin_attributes
+  when: plugin.attributes is defined
+
+
+- name: 'Check if plugin "{{ plugin.name }}" should be enabled (1) (I: "{{ instance.name }}")'
+  ansible.builtin.set_fact:
+    enable_plugin: "{%- if plugin.status.enabled is defined %}off{%- elif plugin.status.disabled is defined %}on{%- else %}unknown{%- endif %}"
+
+- name: 'Check if plugin "{{ plugin.name }}" should be enabled (2) (I: "{{ instance.name }}")'
+  ansible.builtin.set_fact:
+    enable_plugin: 'on'
+  when:
+    - plugin.status is defined
+    - plugin.status == true
+
+- name: 'Check if plugin "{{ plugin.name }}" should be enabled (3) (I: "{{ instance.name }}")'
+  ansible.builtin.set_fact:
+    enable_plugin: 'on'
+  loop: '{{ plugin.status.enabled }}'
+  when:
+    - plugin.status.enabled is defined
+    - item == inventory_hostname
+
+- name: 'Check if plugin "{{ plugin.name }}" should be disabled (1) (I: "{{ instance.name }}")'
+  ansible.builtin.set_fact:
+    enable_plugin: 'off'
+  when:
+    - plugin.status is defined
+    - plugin.status == false
+
+- name: 'Check if plugin "{{ plugin.name }}" should be disabled (2) (I: "{{ instance.name }}")'
+  ansible.builtin.set_fact:
+    enable_plugin: 'off'
+  loop: '{{ plugin.status.disabled }}'
+  when:
+    - plugin.status.disabled is defined
+    - item == inventory_hostname
+
+
+- name: 'Enable/Disable plugin "{{ plugin.name }}" (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
+    name: 'nsslapd-pluginEnabled'
+    values: '{{ enable_plugin }}'
+    state: exact
+  when: (enable_plugin == 'on') or (enable_plugin == 'off')

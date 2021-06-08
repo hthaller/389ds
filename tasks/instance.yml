@@ -1,0 +1,131 @@
+---
+# TODO: Stoppe Replikation + Schema Reload + Starte Replication
+
+- name: 'Prepare {{ instance.name }}.inf answer file for instance creation (I: "{{ instance.name }}")'
+  ansible.builtin.template:
+    src: etc/dirsrv/instance.inf.j2
+    dest: '/etc/dirsrv/{{ instance.name }}.inf'
+    owner: root
+    group: root
+    mode: 0640
+
+- name: 'Create an instance of Directory Server from "{{ instance.name }}.inf" answer file (I: "{{ instance.name }}")'
+  ansible.builtin.command:
+    cmd: "/usr/sbin/dscreate from-file /etc/dirsrv/{{ instance.name }}.inf"
+    creates: '/etc/dirsrv/slapd-{{ instance.name }}'
+
+- name: 'Configure TLS settings (I: "{{ instance.name }}")'
+  ansible.builtin.include_tasks: encryption.yml
+  when: instance.encryption is defined
+
+
+- name: 'Copy schema files (I: "{{ instance.name }}")'
+  ansible.builtin.copy:
+    src: '{{ item }}'
+    dest: '/etc/dirsrv/slapd-{{ instance.name }}/schema/'
+    owner: root
+    group: root
+    mode: 0644
+    force: false
+  loop: '{{ instance.custom_schema_files }}'
+  when: instance.custom_schema_files is defined
+  register: schema_files
+
+- name: 'Restart Directory service instance after a schema change (I: "{{ instance.name }}")'
+  ansible.builtin.service:
+    name: 'dirsrv@{{ instance.name }}'
+    state: restarted
+  when: schema_files.changed
+
+- name: 'Add replication user (I: "{{ instance.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    #server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
+    dn: '{{ replication_user }}'
+    objectClass:
+      - top
+      - person
+      - inetorgperson
+    attributes:
+      cn: 'replication manager'
+      sn: 'RM'
+      userPassword: '{{ instance.initial_replication_manager_password | default(secret) }}'
+      passwordExpirationTime: 20380119031407Z
+      nsIdleTimeout: 0
+#  when: replication_hash is defined
+
+
+- name: 'Allow "Anonymous read access" from localhost to cn=config for monitoring purposes (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=config'
+    name: 'aci'
+    values: '(targetattr != "aci") (version 3.0;acl "Anonymous access for all from localhost to allow monitoring";allow (read,compare,search)(userdn = "ldap:///anyone") and (ip="127.0.0.0+255.0.0.0");)'
+    state: present
+
+- name: 'Apply instance configuration in cn=config (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=config'
+    name: '{{ config.key }}'
+    values: '{{ config.value }}'
+    state: exact
+  loop: "{{ lookup('dict', instance.config | default({}), wantlist=True) }}"
+  loop_control:
+    loop_var: config
+  when: instance.config is defined
+
+- name: 'Apply instance configuration in cn=config,cn=ldbm database,cn=plugins,cn=config (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=config,cn=ldbm database,cn=plugins,cn=config'
+    name: '{{ config.key }}'
+    values: '{{ config.value }}'
+    state: exact
+  loop: "{{ lookup('dict', instance.ldbm_database.config | default({}), wantlist=True) }}"
+  loop_control:
+    loop_var: config
+  when: instance.ldbm_database.config is defined
+
+- name: 'Apply instance configuration in cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config (I: "{{ instance.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config'
+    name: '{{ config.key }}'
+    values: '{{ config.value }}'
+    state: exact
+  loop: "{{ lookup('dict', instance.ldbm_database.bdb | default({}), wantlist=True) }}"
+  loop_control:
+    loop_var: config
+  when: instance.ldbm_database.bdb is defined
+
+
+- name: 'Configure plugins (I: {{ instance.name }})'
+  ansible.builtin.include_tasks: plugin.yml
+  loop: "{{ instance.plugin }}"
+  loop_control:
+    loop_var: plugin
+  when: instance.plugin is defined
+
+
+- name: 'Include Suffix routine(s) (I: "{{ instance.name }}")'
+  ansible.builtin.include_tasks: suffix.yml
+  loop: '{{ instance.suffix }}'
+  loop_control:
+    loop_var: suffix
+
+
+- name: 'Start Directory service instance "{{ instance.name }}" on boot (I: "{{ instance.name }}")'
+  ansible.builtin.service:
+    name: 'dirsrv@{{ instance.name }}'
+    enabled: true

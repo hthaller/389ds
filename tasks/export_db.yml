@@ -1,0 +1,56 @@
+---
+- name: 'set DB to readonly (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
+    name: readonly
+    values: 'on'
+    state: exact
+  delegate_to: '{{ initialmaster }}'
+  run_once: true
+
+- name: 'export DB to LDIF file (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }},cn=export,cn=tasks,cn=config'
+    objectClass:
+      - top
+      - extensibleObject
+    attributes:
+      cn: 'export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}'
+      ttl: 4
+      nsfilename: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+      nsinstance: '{{ suffix.db.0.name }}'
+      nsuseonefile: 'TRUE'
+      nsexportreplica: 'TRUE'
+  delegate_to: '{{ initialmaster }}'
+  run_once: true
+
+- name: 'Wait for the DB export (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.find:
+    paths: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/'
+    patterns: 'db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+    age: '30s'
+    age_stamp: 'mtime'
+  register: modified
+  until: modified.matched == 1
+  retries: 63
+  delay: 10
+  delegate_to: '{{ initialmaster }}'
+  run_once: true
+
+- name: 'set DB to readwrite (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_attr:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
+    name: readonly
+    values: 'off'
+    state: exact
+  delegate_to: '{{ initialmaster }}'
+  run_once: true

@@ -1,0 +1,168 @@
+---
+
+- name: 'Initialize fact "replicaid" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    replicaid: '{{ item.replicaid }}'
+  loop: '{{ suffix.replication.supplier.server }}'
+  when:
+    - ds_isa_supplier == true
+    - item.name == inventory_hostname
+    - item.replicaid is defined
+
+- name: 'Initialize fact "initialmaster" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    initialmaster: ''
+
+- name: 'Initialize fact "initialmaster" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    initialmaster: '{{ item.name }}'
+  loop: '{{ suffix.replication.supplier.server }}'
+  when: item.initialmaster == true
+
+
+- name: 'Enable changelog plugin (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: cn=changelog5,cn=config
+    objectClass:
+      - top
+      - nsChangelogConfig
+    attributes:
+      cn: changelog5
+      nsslapd-changelogdir: /var/lib/dirsrv/slapd-{{ instance.name }}/changelogdb
+      nsslapd-changelogmaxage: '{{ suffix.replication.supplier.changelogmaxage | default("30d") }}'
+  when: ds_isa_supplier == true
+
+
+- name: 'Configure as a supplier node (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: "cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
+    objectClass:
+      - top
+      - nsds5replica
+      - extensibleObject
+    attributes:
+      cn: 'replica'
+      nsds5replicaroot: '{{ suffix.name }}'
+      nsds5replicaid: '{{ replicaid }}'
+      nsds5replicatype: 3
+      nsds5ReplicaBindDN: '{{ replication_user }}'
+      nsds5flags: 1
+      nsds5ReplicaPurgeDelay: '{{ suffix.replication.replicapurgedelay | default(604800) }}'
+  when: ds_isa_supplier == true
+
+- name: 'Configure as a consumer node (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: "cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
+    objectClass:
+      - top
+      - nsds5replica
+      - extensibleObject
+    attributes:
+      cn: 'replica'
+      nsds5replicaroot: '{{ suffix.name }}'
+      nsds5replicaid: 65535
+      nsds5replicatype: 2
+      nsds5ReplicaBindDN: '{{ replication_user }}'
+      nsds5flags: 0
+      nsds5ReplicaPurgeDelay: '{{ suffix.replication.replicapurgedelay | default(604800) }}'
+  when: ds_isa_consumer == true
+
+
+- name: 'Add replication agreement (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: "cn=to_{{ inventory_hostname }},cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
+    objectClass:
+      - top
+      - nsDS5ReplicationAgreement
+    attributes:
+      description: 'Replication Agreement for {{ inventory_hostname }}.'
+      cn: 'to_{{ inventory_hostname }}'
+      nsDS5ReplicaRoot: '{{ suffix.name }}'
+      nsDS5ReplicaHost: '{{ inventory_hostname }}'
+      nsDS5ReplicaPort: '{{ instance.port }}'
+      nsDS5ReplicaBindDN: '{{ replication_user }}'
+      nsDS5ReplicaTransportInfo: TLS
+      # nsDS5ReplicaTransportInfo: LDAP
+      nsDS5ReplicaBindMethod: SIMPLE
+      nsDS5ReplicaCredentials: '{{ instance.initial_replication_manager_password }}'
+      nsDS5ReplicatedAttributeList: '{{ ds_replicatedattributelist | default(omit) }}'
+  delegate_to: "{{ item }}"
+  loop: "{{ ds_supplier_list |difference([inventory_hostname])|list }}"
+  vars:
+    ds_replicatedattributelist: '{%- if (ds_isa_supplier == true) and (suffix.replication.supplier.excluded_attrs is defined) and (suffix.replication.supplier.excluded_attrs | default([]) | length > 0) %}
+(objectclass=*) $ EXCLUDE {{ suffix.replication.supplier.excluded_attrs | join(" ") }}
+{%- elif (ds_isa_consumer == true) and (suffix.replication.consumer.excluded_attrs is defined) and (suffix.replication.consumer.excluded_attrs | default([]) | length > 0) %}
+(objectclass=*) $ EXCLUDE {{ suffix.replication.consumer.excluded_attrs | join(" ") }}
+{%- else %}{{ omit }}{%- endif %}'
+  register: replagmt_status
+
+
+- name: 'Per default do not initialize the client (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    do_client_initialization: false
+
+- ansible.builtin.debug:
+    msg: 'Item.item: {{ item.item }} == initialmaster {{ initialmaster}} and Item.changed: {{ item.changed }} Epoch: {{ ansible_date_time.epoch }}'
+  loop: '{{ replagmt_status.results }}'
+
+- name: 'Start initialization only if a replication agreement on the admin host has changed (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    do_client_initialization: true
+    msg: 'Replication agreement created on host {{ item.item }}: {{ item.changed }}'
+  loop: '{{ replagmt_status.results }}'
+  when:
+    - item.item == initialmaster
+    - item.changed == true
+    - inventory_hostname not in ds_supplier_list
+
+- name: 'Include subroutine for db export (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.include_tasks: export_db.yml
+  when: do_client_initialization == true
+
+- name: 'Import database "{{ suffix.db.0.name }}" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  block:
+    - name: Copy db-file Remote-To-Remote (from master server to replica)
+      synchronize:
+        src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        dest: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
+        owner: false
+        group: false
+      delegate_to: '{{ initialmaster }}'
+
+    - name: 'Change ownership for db-file (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.file:
+        path: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
+        mode: '600'
+        owner: dirsrv
+        group: dirsrv
+
+    - name: 'Stop dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.service:
+        name: 'dirsrv@{{ instance.name }}'
+        state: stopped
+
+    - name: 'Import DB on replica server (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.command:
+        cmd: '/usr/sbin/dsctl {{ instance.name }} ldif2db {{ suffix.db.0.name }} /var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
+        chdir: /etc/dirsrv
+
+    - name: 'Start dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.service:
+        name: 'dirsrv@{{ instance.name }}'
+        state: started
+
+  when:
+    - do_client_initialization == true
+    - initialmaster != inventory_hostname

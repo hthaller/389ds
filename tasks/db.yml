@@ -1,0 +1,86 @@
+---
+
+- name: 'Add indexes to DB (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ index.name }},cn=index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+    objectClass:
+      - top
+      - nsIndex
+    attributes:
+      cn: '{{ index.name }}'
+      nsSystemIndex: false
+      nsIndexType: '{{ index.type }}'
+  loop: '{{ db.index }}'
+  loop_control:
+    loop_var: index
+  when: db.index is defined
+
+- name: 'VLV index creation'
+  block:
+    - name: 'Set VLV prefix (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+      ansible.builtin.set_fact:
+        vlv_prefix1: '{{ db.vlv_prefix }}_'
+        vlv_prefix2: '{{ db.vlv_prefix }}.'
+      when: db.vlv_prefix is defined
+
+    - name: 'Add containers for VLV indexes (vlvSearch) (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+      ldap_entry:
+        bind_dn: '{{ dm_dn }}'
+        bind_pw: '{{ dm_password }}'
+        server_uri: 'ldap://localhost:{{ instance.port }}'
+        dn: 'cn={{ vlv_prefix1 | default("") }}{{ item.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+        objectClass:
+          - top
+          - vlvSearch
+        attributes:
+          cn: '{{ vlv_prefix1 | default("") }}{{ item.name }}_vlv_index'
+          vlvBase: '{{ item.base }}'
+          vlvScope: '{{ item.scope }}'
+          vlvFilter: '{{ item.filter }}'
+          aci: '(target="ldap:///cn={{ vlv_prefix1 | default("") }}{{ item.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config")(targetattr="*")(version 3.0; acl "Config";allow(read,search,compare)userdn="ldap:///anyone";)'
+      loop: '{{ db.vlv_index }}'
+      when: db.vlv_index is defined
+
+
+    - name: 'Add VLV indexes (vlvIndex) (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+      ldap_entry:
+        bind_dn: '{{ dm_dn }}'
+        bind_pw: '{{ dm_password }}'
+        server_uri: 'ldap://localhost:{{ instance.port }}'
+        dn: 'cn={{ vlv_prefix2 | default("") }}{{ item.1.name }},cn={{ vlv_prefix1 | default("") }}{{ item.0.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+        objectClass:
+          - top
+          - vlvIndex
+        attributes:
+          cn: '{{ vlv_prefix2 | default("")  }}{{ item.1.name }}'
+          vlvSort: '{{ item.1.sort }}'
+      with_subelements:
+        - "{{ db.vlv_index }}"
+        - index
+      when: db.vlv_index is defined
+      register: vlv_change
+
+    - name: "Start Reindex task"
+      block:
+        - name: 'Stop dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}, DB: "{{ db.name }}")'
+          ansible.builtin.service:
+            name: 'dirsrv@{{ instance.name }}'
+            state: stopped
+
+
+        - name: 'Calculate indices with dsctl db2index (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+          ansible.builtin.command: '/usr/sbin/dsctl {{ instance.name }} db2index {{ db.name }}'
+          args:
+            chdir: /var/tmp
+
+        - name: 'Start dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}, DB: "{{ db.name }}")'
+          ansible.builtin.service:
+            name: 'dirsrv@{{ instance.name }}'
+            state: started
+
+      when: vlv_change.changed
+
+  when: (ds_isa_consumer == false) or (no_certificate == false)

@@ -1,0 +1,35 @@
+---
+# TODO: Only one DB per suffix allowed at the moment
+
+- name: 'Create the suffix (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.command:
+    cmd: '/usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} backend create --suffix="{{ suffix.name }}" --be-name="{{ suffix.db.0.name }}" --create-suffix'
+    creates: '/var/lib/dirsrv/slapd-{{ instance.name }}/db/{{ suffix.db.0.name }}'
+
+- name: 'Initialize fact "ds_supplier_list" from inventory (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    ds_supplier_list: "{{ suffix.replication.supplier.server | default([]) | map(attribute='name') | list }}"
+
+- name: 'Initialize fact "ds_isa_supplier" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    ds_isa_supplier: '{{ inventory_hostname in ds_supplier_list }}'
+
+- name: 'Initialize fact "ds_isa_consumer" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    ds_isa_consumer: '{{ ( inventory_hostname not in ds_supplier_list ) and (suffix.replication.consumer.inventorygroup is defined) and (suffix.replication.consumer.inventorygroup in group_names)}}'
+
+- name: 'Initialize fact "ds_isa_standalone" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.set_fact:
+    ds_isa_standalone: '{{ (ds_isa_supplier == false) and (ds_isa_consumer == false)}}'
+
+- name: 'Configure replication (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.include_tasks: replication.yml
+  when:
+    - ds_isa_standalone == false
+    - no_certificate == false
+
+- name: 'Include DB routine(s) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+  ansible.builtin.include_tasks: db.yml
+  loop: '{{ suffix.db }}'
+  loop_control:
+    loop_var: db
