@@ -84,7 +84,7 @@
           register: get_cer
           delegate_to: localhost
           changed_when: get_cer.rc == 0
-          failed_when: 
+          failed_when:
             - get_cer.rc != 0
             - get_cer.rc != 1
 

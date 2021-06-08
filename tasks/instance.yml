@@ -42,7 +42,7 @@
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: 'ldap://localhost:{{ instance.port }}'
-    #server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
+    # server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
     dn: '{{ replication_user }}'
     objectClass:
       - top

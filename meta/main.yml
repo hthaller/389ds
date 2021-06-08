@@ -1,3 +1,4 @@
+---
 galaxy_info:
   author: Horst Thaller
   description: An Ansible role for the configuration of the 389 directory server
@@ -27,15 +28,9 @@ galaxy_info:
   # https://galaxy.ansible.com/api/v1/platforms/
   #
   platforms:
-  - name: EL
-    versions:
-    - 8
-  # - name: SomePlatform
-  #   versions:
-  #   - all
-  #   - 1.0
-  #   - 7
-  #   - 99.99
+    - name: EL
+      versions:
+        - 8
 
   galaxy_tags:
     - 389ds
@@ -43,15 +38,8 @@ galaxy_info:
     - ldap
     - rhds
     - ansible
-    - ansible-role 
-    # List tags for your role here, one per line. A tag is a keyword that describes
-    # and categorizes the role. Users find roles by searching for tags. Be sure to
-    # remove the '[]' above, if you add tags to this list.
-    #
-    # NOTE: A tag is limited to a single word comprised of alphanumeric characters.
-    #       Maximum 20 tags per role.
+    - ansible-role
 
 dependencies: []
-  # List your role dependencies here, one per line. Be sure to remove the '[]' above,
-  # if you add dependencies to this list.
-  
+# List your role dependencies here, one per line. Be sure to remove the '[]' above,
+# if you add dependencies to this list.
