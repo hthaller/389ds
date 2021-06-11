@@ -79,7 +79,7 @@
           delegate_to: localhost
 
         - name: 'Get signed certificate (I: "{{ instance.name }}")'
-          ansible.buildin.shell:
+          ansible.builtin.shell:
             cmd: '{{ instance.encryption.get_certscript }} {{ instance.encryption.directory_certs }}/{{ inventory_hostname }}/{{ instance.name }}/Server-Cert_{{ csr_fileinfo.stat.ctime | int }}.csr'
           register: get_cer
           delegate_to: localhost
