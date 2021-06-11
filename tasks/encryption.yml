@@ -31,7 +31,7 @@
 
 
     - name: 'Check if server certificate is valid for the next {{ instance.encryption.certificate.renew_before_exp_days }} days (I: "{{ instance.name }}")'
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: "/usr/bin/certutil -V -l -d '/etc/dirsrv/slapd-{{ instance.name }}' -n Server-Cert -u C -b {{ lookup('pipe','/usr/bin/date -d \"+' + ( instance.encryption.certificate.renew_before_exp_days | string) + ' days\" --utc +%y%m%d%H%M%S') }}Z"
       register: cert_validation
       changed_when: false
@@ -167,7 +167,7 @@
     state: exact
   register: result_setsecureport
   when:
-    - no_certificate == false
+    - not no_certificate
 
 - name: 'Enable/Disable TLS (I: "{{ instance.name }}")'
   ldap_attr:
@@ -181,7 +181,7 @@
   register: result_enabletls
   when:
     - instance.tls is defined
-    - no_certificate == false
+    - not no_certificate
 
 - name: 'Restart Directory service instance after enabling TLS (I: "{{ instance.name }}")'
   ansible.builtin.service:

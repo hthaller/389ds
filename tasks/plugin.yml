@@ -24,7 +24,7 @@
     enable_plugin: 'on'
   when:
     - plugin.status is defined
-    - plugin.status == true
+    - plugin.status
 
 - name: 'Check if plugin "{{ plugin.name }}" should be enabled (3) (I: "{{ instance.name }}")'
   ansible.builtin.set_fact:
@@ -39,7 +39,7 @@
     enable_plugin: 'off'
   when:
     - plugin.status is defined
-    - plugin.status == false
+    - not plugin.status
 
 - name: 'Check if plugin "{{ plugin.name }}" should be disabled (2) (I: "{{ instance.name }}")'
   ansible.builtin.set_fact:

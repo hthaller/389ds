@@ -38,7 +38,7 @@ galaxy_info:
     - ldap
     - rhds
     - ansible
-    - ansible-role
+    - ansiblerole
 
 dependencies: []
 # List your role dependencies here, one per line. Be sure to remove the '[]' above,
