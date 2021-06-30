@@ -24,6 +24,7 @@
     enable_plugin: 'on'
   when:
     - plugin.status is defined
+    - 'plugin.status | type_debug == "bool"'
     - plugin.status
 
 - name: 'Check if plugin "{{ plugin.name }}" should be enabled (3) (I: "{{ instance.name }}")'
@@ -39,6 +40,7 @@
     enable_plugin: 'off'
   when:
     - plugin.status is defined
+    - 'plugin.status | type_debug == "bool"'
     - not plugin.status
 
 - name: 'Check if plugin "{{ plugin.name }}" should be disabled (2) (I: "{{ instance.name }}")'
