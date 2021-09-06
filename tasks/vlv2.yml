@@ -1,0 +1,30 @@
+---
+- name: 'Add VLV indexes (vlvIndex) (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn={{ vlv_prefix2 | default("") }}{{ index.name }},cn={{ vlv_prefix1 | default("") }}{{ vlv_index.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+    objectClass:
+      - top
+      - vlvIndex
+    attributes:
+      cn: '{{ vlv_prefix2 | default("")  }}{{ index.name }}'
+      vlvSort: '{{ index.sort }}'
+  register: vlvcreated
+
+- name: 'Creating a Browsing Index (VLV) using a cn=tasks Entry (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+  ldap_entry:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: 'ldap://localhost:{{ instance.port }}'
+    dn: 'cn=Ansible_task_{{ vlv_prefix2 | default("") }}{{ index.name }},cn=index,cn=tasks,cn=config'
+    objectClass:
+      - top
+      - extensibleObject
+    attributes:
+      cn: 'Ansible_task_{{ vlv_prefix2 | default("")  }}{{ index.name }}'
+      nsIndexVLVAttribute: '{{ vlv_prefix2 | default("")  }}{{ index.name }}'
+      nsInstance: '{{ db.name }}'
+  when: vlvcreated.changed
+
