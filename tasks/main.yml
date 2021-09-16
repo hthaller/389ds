@@ -5,7 +5,7 @@
   ansible.builtin.dnf:
     name:
       - "@redhat-ds:11"
-      - cockpit-dashboard
+      - python3-ldap
     state: present
 
 - name: 'Start Directory service on boot'

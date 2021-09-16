@@ -125,7 +125,7 @@
   when:
     - item.item == initialmaster
     - item.changed
-    - inventory_hostname not in ds_supplier_list
+#    - inventory_hostname not in ds_supplier_list
 
 - name: 'Include subroutine for db export (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
   ansible.builtin.include_tasks: export_db.yml
@@ -133,20 +133,21 @@
 
 - name: 'Import database "{{ suffix.db.0.name }}" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
   block:
-    - name: Copy db-file Remote-To-Remote (from master server to replica)
-      synchronize:
+    - name: 'Copy db-file Remote-To-Remote (from master server to ansible control node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.fetch:
         src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
-        dest: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
-        owner: false
-        group: false
+        dest: '/tmp/'
+        flat: true
       delegate_to: '{{ initialmaster }}'
+      run_once: true
 
-    - name: 'Change ownership for db-file (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
-      ansible.builtin.file:
-        path: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
-        mode: '600'
+    - name: 'Copy db-file Remote-To-Remote (from ansible control node to remote node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.copy:
+        src: '/tmp/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        dest: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
         owner: dirsrv
         group: dirsrv
+        mode: '0600'
 
     - name: 'Stop dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
       ansible.builtin.service:
@@ -162,6 +163,10 @@
       ansible.builtin.service:
         name: 'dirsrv@{{ instance.name }}'
         state: started
+
+    - name: 'Wait 20s until the service is started and responds on the ldap port'
+      ansible.builtin.pause:
+        seconds: 20
 
   when:
     - do_client_initialization
