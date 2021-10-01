@@ -131,7 +131,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=RSA,cn=encryption,cn=config'
     objectClass:
       - top
@@ -146,7 +146,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=encryption,cn=config'
     name: '{{ encryption.key }}'
     values: '{{ encryption.value }}'
@@ -160,7 +160,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=config'
     name: 'nsslapd-securePort'
     values: "{{ instance.secure_port | default('636') }}"
@@ -173,7 +173,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=config'
     name: 'nsslapd-security'
     values: "{{ instance.tls }}"

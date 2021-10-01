@@ -13,7 +13,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn={{ vlv_prefix1 | default("") }}{{ vlv_index.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
     objectClass:
       - top

@@ -3,7 +3,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
     name: readonly
     values: 'on'
@@ -15,7 +15,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }},cn=export,cn=tasks,cn=config'
     objectClass:
       - top
@@ -47,7 +47,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
     name: readonly
     values: 'off'

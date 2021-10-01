@@ -24,7 +24,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: cn=changelog5,cn=config
     objectClass:
       - top
@@ -40,7 +40,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: "cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
     objectClass:
       - top
@@ -60,7 +60,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: "cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
     objectClass:
       - top
@@ -81,7 +81,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: "cn=to_{{ inventory_hostname }},cn=replica,cn={{ suffix.name | regex_replace('=','\\=') | regex_replace(',','\\,') }},cn=mapping tree,cn=config"
     objectClass:
       - top
@@ -136,14 +136,13 @@
     - name: 'Copy db-file Remote-To-Remote (from master server to ansible control node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
       ansible.builtin.fetch:
         src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
-        dest: '/tmp/'
-        flat: true
+        dest: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
       delegate_to: '{{ initialmaster }}'
       run_once: true
 
     - name: 'Copy db-file Remote-To-Remote (from ansible control node to remote node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
       ansible.builtin.copy:
-        src: '/tmp/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        src: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         dest: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
         owner: dirsrv
         group: dirsrv
@@ -163,10 +162,6 @@
       ansible.builtin.service:
         name: 'dirsrv@{{ instance.name }}'
         state: started
-
-    - name: 'Wait 20s until the service is started and responds on the ldap port'
-      ansible.builtin.pause:
-        seconds: 20
 
   when:
     - do_client_initialization

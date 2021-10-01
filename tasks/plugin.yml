@@ -4,7 +4,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
     name: '{{ plugin_attributes.key }}'
     values: '{{ plugin_attributes.value }}'
@@ -56,7 +56,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
     name: 'nsslapd-pluginEnabled'
     values: '{{ enable_plugin }}'

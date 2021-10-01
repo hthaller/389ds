@@ -41,8 +41,7 @@
   ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
-    # server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
+    server_uri: '{{ server_uri }}'
     dn: '{{ replication_user }}'
     objectClass:
       - top
@@ -61,7 +60,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=config'
     name: 'aci'
     values: '(targetattr != "aci") (version 3.0;acl "Anonymous access for all from localhost to allow monitoring";allow (read,compare,search)(userdn = "ldap:///anyone") and (ip="127.0.0.0+255.0.0.0");)'
@@ -71,7 +70,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=config'
     name: '{{ config.key }}'
     values: '{{ config.value }}'
@@ -85,7 +84,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=config,cn=ldbm database,cn=plugins,cn=config'
     name: '{{ config.key }}'
     values: '{{ config.value }}'
@@ -99,7 +98,7 @@
   ldap_attr:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: '{{ server_uri }}'
     dn: 'cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config'
     name: '{{ config.key }}'
     values: '{{ config.value }}'
