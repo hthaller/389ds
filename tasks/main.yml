@@ -22,8 +22,8 @@
     port: '{{ instance.port | default(ds_app.port | default(ds_port)) }}'
     secure_port: '{{ instance.secure_port | default(ds_app.secure_port | default(ds_secure_port)) }}'
     replication_user: '{{ instance.replication_user | default(ds_app.replication_user | default(ds_replication_user)) }}'
-    server_uri: 'ldap://localhost:{{ instance.port }}'
-    #server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
+    #server_uri: 'ldap://localhost:{{ instance.port }}'
+    server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
   loop: '{{ ds_app.instance }}'
   loop_control:
     loop_var: instance

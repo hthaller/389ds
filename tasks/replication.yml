@@ -137,6 +137,7 @@
       ansible.builtin.fetch:
         src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         dest: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        flat: true
       delegate_to: '{{ initialmaster }}'
       run_once: true
 
