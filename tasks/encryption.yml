@@ -28,7 +28,7 @@
       ansible.builtin.command:
         cmd: '/usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} security ca-certificate add --file /etc/dirsrv/slapd-{{ instance.name }}/certs/{{ item }} --name "{{ item }}"'
       loop: "{{ ca_file_list.files | map(attribute='path') | map('basename') | list | difference(ca_db_list.stdout_lines) }}"
-
+      no_log: true
 
     - name: 'Check if server certificate is valid for the next {{ instance.encryption.certificate.renew_before_exp_days }} days (I: "{{ instance.name }}")'
       ansible.builtin.command:
@@ -105,6 +105,7 @@
                 cmd: '/usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} security certificate add --file /etc/dirsrv/slapd-{{ instance.name }}/Server-Cert.cer --name "Server-Cert" --primary-cert'
               when: copy_cer is defined and copy_cer.changed is defined and copy_cer.changed
               register: cert2db
+              no_log: true
 
             - name: 'Remove CSR file (I: "{{ instance.name }}")'
               ansible.builtin.file:
