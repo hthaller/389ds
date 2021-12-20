@@ -53,8 +53,7 @@
       userPassword: '{{ instance.initial_replication_manager_password | default(secret) }}'
       passwordExpirationTime: 20380119031407Z
       nsIdleTimeout: 0
-#  when: replication_hash is defined
-
+  no_log: true
 
 - name: 'Allow "Anonymous read access" from localhost to cn=config for monitoring purposes (I: "{{ instance.name }}")'
   ldap_attr:

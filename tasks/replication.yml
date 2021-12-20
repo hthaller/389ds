@@ -107,7 +107,7 @@
 (objectclass=*) $ EXCLUDE {{ suffix.replication.consumer.excluded_attrs | join(" ") }}
 {%- else %}{{ omit }}{%- endif %}'
   register: replagmt_status
-
+  no_log: true
 
 - name: 'Per default do not initialize the client (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
   ansible.builtin.set_fact:
@@ -137,7 +137,6 @@
       ansible.builtin.fetch:
         src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         dest: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
-        flat: true
       delegate_to: '{{ initialmaster }}'
       run_once: true
 
