@@ -1,0 +1,5 @@
+---
+# Put internal variables here with Red Hat Enterprise Linux 9 specific values.
+
+ds_packages:
+  - 389-ds-base

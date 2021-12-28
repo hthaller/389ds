@@ -1,0 +1,6 @@
+---
+# Put internal variables here with Red Hat Enterprise Linux 9 specific values.
+
+ds_packages:
+  - "@redhat-ds:11"
+  - cockpit-dashboard
