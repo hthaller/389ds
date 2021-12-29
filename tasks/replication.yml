@@ -133,17 +133,24 @@
 
 - name: 'Import database "{{ suffix.db.0.name }}" (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
   block:
+    - name: 'Create temporary directory (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+      ansible.builtin.tempfile:
+        state: directory
+      register: tempdir_1
+      delegate_to: localhost
+      run_once: true
+
     - name: 'Copy db-file Remote-To-Remote (from master server to ansible control node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
       ansible.builtin.fetch:
         src: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
-        dest: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        dest: '{{ tempdir_1.path }}/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         flat: true
       delegate_to: '{{ initialmaster }}'
       run_once: true
 
     - name: 'Copy db-file Remote-To-Remote (from ansible control node to remote node) (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
       ansible.builtin.copy:
-        src: '/tmp/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
+        src: '{{ tempdir_1.path }}/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         dest: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif'
         owner: dirsrv
         group: dirsrv
