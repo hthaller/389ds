@@ -20,9 +20,9 @@
   when: ds_vars_file is file
  
 - name: 'Install DS and dependencies'
-  ansible.builtin.dnf:
+  ansible.builtin.package:
     name: "{{ ds_packages }}"
-    state: latest
+    state: present
  
 - name: 'Start Directory service on boot'
   ansible.builtin.service:
