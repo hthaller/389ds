@@ -1,18 +1,18 @@
 ---
-- name: 'set DB to readonly (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
-  ldap_attr:
+- name: 'Set DB to readonly {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
+  community.general.ldap_attrs:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
     dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
-    name: readonly
-    values: 'on'
+    attributes:
+      readonly: 'on'
     state: exact
   delegate_to: '{{ initialmaster }}'
   run_once: true
 
-- name: 'export DB to LDIF file (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
-  ldap_entry:
+- name: 'Export DB to LDIF file {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
+  community.general.ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
@@ -30,7 +30,7 @@
   delegate_to: '{{ initialmaster }}'
   run_once: true
 
-- name: 'Wait for the DB export (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
+- name: 'Wait for the DB export {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
   ansible.builtin.find:
     paths: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/'
     patterns: 'db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
@@ -43,14 +43,14 @@
   delegate_to: '{{ initialmaster }}'
   run_once: true
 
-- name: 'set DB to readwrite (I: "{{ instance.name }}", S: "{{ suffix.name }}")'
-  ldap_attr:
+- name: 'Set DB to readwrite {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
+  community.general.ldap_attrs:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
     dn: 'cn={{ suffix.db.0.name }},cn=ldbm database,cn=plugins,cn=config'
-    name: readonly
-    values: 'off'
+    attributes:
+      readonly: 'off'
     state: exact
   delegate_to: '{{ initialmaster }}'
   run_once: true

@@ -1,17 +1,19 @@
 ---
-
 # this statement should be replaced with ldap_search in the future
 - name: 'Check if vlvBase exists: {{ vlv_index.base }}'
   ansible.builtin.shell:
-    cmd: '/usr/bin/ldapsearch -x -D "{{ dm_dn }}" -w "{{ dm_password }}" -s base -H ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket -b "{{ vlv_index.base }}" | grep "^# numEntries: 1"'
+    cmd: >-
+      /usr/bin/ldapsearch -x -D "{{ dm_dn }}" -w "{{ dm_password }}" -s base
+      -H ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket -b "{{ vlv_index.base }}"
+      | grep "^# numEntries: 1"
   no_log: true
   ignore_errors: true
   register: result
   changed_when: result.rc == 0
   failed_when: result.rc > 1
 
-- name: 'Add containers for VLV indexes (vlvSearch) (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
-  ldap_entry:
+- name: 'Add containers for VLV indexes (vlvSearch) {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
+  community.general.ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
@@ -24,11 +26,14 @@
       vlvBase: '{{ vlv_index.base }}'
       vlvScope: '{{ vlv_index.scope }}'
       vlvFilter: '{{ vlv_index.filter }}'
-      aci: '(target="ldap:///cn={{ vlv_prefix1 | default("") }}{{ vlv_index.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config")(targetattr="*")(version 3.0; acl "Config";allow(read,search,compare)userdn="ldap:///anyone";)'
+      aci: >-
+        (target="ldap:///cn={{ vlv_prefix1
+        | default("") }}{{ vlv_index.name }}_vlv_index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config")(targetattr="*")(version 3.0;
+        acl "Config";allow(read,search,compare)userdn="ldap:///anyone";)
   when: result.changed
 
 
-- name: 'Include VLV2 creation routine(s) (I: "{{ instance.name }}")'
+- name: 'Include VLV2 creation routine(s) {{ "(I: " + instance.name + ")" }}'
   ansible.builtin.include_tasks: vlv2.yml
   loop: '{{ vlv_index.index }}'
   loop_control:

@@ -1,25 +1,21 @@
 ---
 
-- name: 'Apply plugin configuration for plugin "{{ plugin.name }}" (I: "{{ instance.name }}")'
-  ldap_attr:
+- name: 'Apply plugin configuration for plugin {{ "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
+  community.general.ldap_attrs:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
     dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
-    name: '{{ plugin_attributes.key }}'
-    values: '{{ plugin_attributes.value }}'
+    attributes: '{{ plugin.attributes }}'
     state: exact
-  loop: "{{ lookup('dict', plugin.attributes | default({}), wantlist=True) }}"
-  loop_control:
-    loop_var: plugin_attributes
   when: plugin.attributes is defined
 
 
-- name: 'Check if plugin "{{ plugin.name }}" should be enabled (1) (I: "{{ instance.name }}")'
+- name: 'Check if plugin should be enabled (1) { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
   ansible.builtin.set_fact:
     enable_plugin: "{%- if plugin.status.enabled is defined %}off{%- elif plugin.status.disabled is defined %}on{%- else %}unknown{%- endif %}"
 
-- name: 'Check if plugin "{{ plugin.name }}" should be enabled (2) (I: "{{ instance.name }}")'
+- name: 'Check if plugin should be enabled (2) { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
   ansible.builtin.set_fact:
     enable_plugin: 'on'
   when:
@@ -27,7 +23,7 @@
     - 'plugin.status | type_debug == "bool"'
     - plugin.status
 
-- name: 'Check if plugin "{{ plugin.name }}" should be enabled (3) (I: "{{ instance.name }}")'
+- name: 'Check if plugin should be enabled (3) { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
   ansible.builtin.set_fact:
     enable_plugin: 'on'
   loop: '{{ plugin.status.enabled }}'
@@ -35,7 +31,7 @@
     - plugin.status.enabled is defined
     - item == inventory_hostname
 
-- name: 'Check if plugin "{{ plugin.name }}" should be disabled (1) (I: "{{ instance.name }}")'
+- name: 'Check if plugin should be disabled (1) { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
   ansible.builtin.set_fact:
     enable_plugin: 'off'
   when:
@@ -43,7 +39,7 @@
     - 'plugin.status | type_debug == "bool"'
     - not plugin.status
 
-- name: 'Check if plugin "{{ plugin.name }}" should be disabled (2) (I: "{{ instance.name }}")'
+- name: 'Check if plugin should be disabled (2) { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
   ansible.builtin.set_fact:
     enable_plugin: 'off'
   loop: '{{ plugin.status.disabled }}'
@@ -52,13 +48,13 @@
     - item == inventory_hostname
 
 
-- name: 'Enable/Disable plugin "{{ plugin.name }}" (I: "{{ instance.name }}")'
-  ldap_attr:
+- name: 'Enable/Disable plugin { "(I: " + instance.name + ", P: " + plugin.name + ")" }}'
+  community.general.ldap_attrs:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
     dn: 'cn={{ plugin.name }},cn=plugins,cn=config'
-    name: 'nsslapd-pluginEnabled'
-    values: '{{ enable_plugin }}'
+    attributes:
+      nsslapd-pluginEnabled: '{{ enable_plugin }}'
     state: exact
   when: (enable_plugin == 'on') or (enable_plugin == 'off')

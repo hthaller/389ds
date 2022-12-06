@@ -1,6 +1,6 @@
 ---
-- name: 'Add indexes to DB (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
-  ldap_entry:
+- name: 'Add indexes to DB {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
+  community.general.ldap_entry:
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
@@ -18,26 +18,26 @@
   when: db.index is defined
   register: result
 
-- name: 'Stop dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+- name: 'Stop dirsrv service {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.service:
     name: 'dirsrv@{{ instance.name }}'
     state: stopped
   when: result.changed
 
-- name: 'Calculate indices with dsctl db2index (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+- name: 'Calculate indices with dsctl db2index {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.command: '/usr/sbin/dsctl {{ instance.name }} db2index {{ db.name }}'
   args:
     chdir: /var/tmp
   when: result.changed
 
-- name: 'Start dirsrv service (I: "{{ instance.name }}", S: "{{ suffix.name }}", DB: "{{ db.name }}")'
+- name: 'Start dirsrv service {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.service:
     name: 'dirsrv@{{ instance.name }}'
     state: started
   when: result.changed
 
 
-- name: 'Include VLV creation routine(s) (I: "{{ instance.name }}")'
+- name: 'Include VLV creation routine(s) {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.include_tasks: vlv.yml
   loop: '{{ db.vlv_index }}'
   loop_control:

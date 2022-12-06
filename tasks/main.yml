@@ -18,12 +18,12 @@
   vars:
     ds_vars_file: "{{ role_path }}/vars/{{ item }}"
   when: ds_vars_file is file
- 
+
 - name: 'Install DS and dependencies'
   ansible.builtin.package:
     name: "{{ ds_packages }}"
     state: present
- 
+
 - name: 'Start Directory service on boot'
   ansible.builtin.service:
     name: 'dirsrv.target'
@@ -37,7 +37,7 @@
     port: '{{ instance.port | default(ds_app.port | default(ds_port)) }}'
     secure_port: '{{ instance.secure_port | default(ds_app.secure_port | default(ds_secure_port)) }}'
     replication_user: '{{ instance.replication_user | default(ds_app.replication_user | default(ds_replication_user)) }}'
-    #server_uri: 'ldap://localhost:{{ instance.port }}'
+    # server_uri: 'ldap://{{ inventory_hostname }}:{{ instance.port }}'
     server_uri: 'ldapi://%2fvar%2frun%2fslapd-{{ instance.name }}.socket'
   loop: '{{ ds_app.instance }}'
   loop_control:
