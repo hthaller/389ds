@@ -1,5 +1,7 @@
 ---
 galaxy_info:
+  role_name: "389ds"
+  namespace: hthaller
   author: Horst Thaller
   description: An Ansible role for the configuration of the 389 directory server
 
