@@ -20,8 +20,7 @@
 - name: 'Initialize fact "ds_isa_consumer" {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
   ansible.builtin.set_fact:
     ds_isa_consumer: >-
-      {{ (inventory_hostname not in ds_supplier_list) and (suffix.replication.consumer.inventorygroup is defined)
-      and (suffix.replication.consumer.inventorygroup in group_names) }}
+      {{ (inventory_hostname not in ds_supplier_list) }}
 
 - name: 'Initialize fact "ds_isa_standalone" {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
   ansible.builtin.set_fact:
