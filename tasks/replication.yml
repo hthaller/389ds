@@ -19,23 +19,6 @@
   loop: '{{ suffix.replication.supplier.server }}'
   when: item.initialmaster
 
-
-- name: 'Enable changelog plugin {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
-  community.general.ldap_entry:
-    bind_dn: '{{ dm_dn }}'
-    bind_pw: '{{ dm_password }}'
-    server_uri: '{{ server_uri }}'
-    dn: cn=changelog5,cn=config
-    objectClass:
-      - top
-      - nsChangelogConfig
-    attributes:
-      cn: changelog5
-      nsslapd-changelogdir: /var/lib/dirsrv/slapd-{{ instance.name }}/changelogdb
-      nsslapd-changelogmaxage: '{{ suffix.replication.supplier.changelogmaxage | default("30d") }}'
-  when: ds_isa_supplier
-
-
 - name: 'Configure as a supplier node {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
   community.general.ldap_entry:
     bind_dn: '{{ dm_dn }}'
