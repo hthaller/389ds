@@ -12,29 +12,46 @@
       cn: '{{ index.name }}'
       nsSystemIndex: false
       nsIndexType: '{{ index.type }}'
+      nsMatchingRule: '{{ index.matchingrule | default(omit) }}'
   loop: '{{ db.index }}'
   loop_control:
     loop_var: index
   when: db.index is defined
   register: result
 
+- name: 'Update indexes to DB {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
+  community.general.ldap_attrs:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: '{{ server_uri }}'
+    dn: 'cn={{ index.name }},cn=index,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+    attributes:
+      nsIndexType: '{{ index.type }}'
+      nsMatchingRule: '{{ index.matchingrule | default(omit) }}'
+    state: exact
+  loop: '{{ db.index }}'
+  loop_control:
+    loop_var: index
+  when: db.index is defined
+  register: result2
+
 - name: 'Stop dirsrv service {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.service:
     name: 'dirsrv@{{ instance.name }}'
     state: stopped
-  when: result.changed
+  when: result.changed or result2.changed
 
 - name: 'Calculate indices with dsctl db2index {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.command: '/usr/sbin/dsctl {{ instance.name }} db2index {{ db.name }}'
   args:
     chdir: /var/tmp
-  when: result.changed
+  when: result.changed or result2.changed
 
 - name: 'Start dirsrv service {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.service:
     name: 'dirsrv@{{ instance.name }}'
     state: started
-  when: result.changed
+  when: result.changed or result2.changed
 
 
 - name: 'Include VLV creation routine(s) {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
