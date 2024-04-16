@@ -76,7 +76,7 @@
       nsDS5ReplicaHost: '{{ inventory_hostname }}'
       nsDS5ReplicaPort: '{{ instance.port }}'
       nsDS5ReplicaBindDN: '{{ replication_user }}'
-      nsDS5ReplicaTransportInfo: TLS
+      nsDS5ReplicaTransportInfo: StartTLS
       # nsDS5ReplicaTransportInfo: LDAP
       nsDS5ReplicaBindMethod: SIMPLE
       nsDS5ReplicaCredentials: '{{ instance.initial_replication_manager_password }}'
