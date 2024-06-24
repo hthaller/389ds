@@ -6,7 +6,7 @@
   block:
     - name: 'Query server certificate authorities including intermediates {{ "(I: " + instance.name + ")" }}'
       ansible.builtin.command:
-        cmd: '/usr/sbin/dsctl urania tls list-ca'
+        cmd: '/usr/sbin/dsctl {{ instance.name }} tls list-ca'
       register: ca_db_list
       changed_when: false
 
