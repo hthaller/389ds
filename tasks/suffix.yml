@@ -6,7 +6,14 @@
     cmd: >-
       /usr/sbin/dsconf -D "{{ dm_dn }}" -w "{{ dm_password }}" ldap://localhost:{{ instance.port }} backend
       create --suffix="{{ suffix.name }}" --be-name="{{ suffix.db.0.name }}" --create-suffix
-    creates: '/var/lib/dirsrv/slapd-{{ instance.name }}/db/{{ suffix.db.0.name }}'
+    creates: >-
+      {{
+        (ansible_facts.os_family == 'RedHat' and (ansible_distribution_major_version | int) >= 10)
+        | ternary(
+            '/var/lib/dirsrv/slapd-' ~ instance.name ~ '/db/data.mdb',
+            '/var/lib/dirsrv/slapd-' ~ instance.name ~ '/db/' ~ suffix.db[0].name
+        )
+      }}
   no_log: true
 
 - name: 'Initialize fact "ds_supplier_list" from inventory {{ "(I: " + instance.name + ", S: " + suffix.name + ")" }}'
