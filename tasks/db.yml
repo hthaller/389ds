@@ -35,6 +35,16 @@
   when: db.index is defined
   register: result2
 
+- name: 'Apply instance configuration in cn=changelog,{{ db.name }},cn=ldbm database,cn=plugins,cn=config {{ "(I: " + instance.name + ")" }}'
+  community.general.ldap_attrs:
+    bind_dn: '{{ dm_dn }}'
+    bind_pw: '{{ dm_password }}'
+    server_uri: '{{ server_uri }}'
+    dn: 'cn=changelog,cn={{ db.name }},cn=ldbm database,cn=plugins,cn=config'
+    attributes: '{{ instance.ldbm_database.changelog }}'
+    state: exact
+  when: instance.ldbm_database.changelog is defined
+
 - name: 'Stop dirsrv service {{ "(I: " + instance.name + ", S: " + suffix.name + ", DB: " + db.name + ")" }}'
   ansible.builtin.service:
     name: 'dirsrv@{{ instance.name }}'
