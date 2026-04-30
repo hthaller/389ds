@@ -34,7 +34,7 @@
   vars:
     dm_dn: '{{ instance.dm_dn | default(ds_app.dm_dn | default(ds_dm_dn)) }}'
     dm_password: '{{ instance.dm_password | default(ds_app.dm_password | default(ds_dm_password)) }}'
-    port: '{{ instance.port | default(ds_app.port | default(ds_port)) }}'
+    plain_port: '{{ instance.port | default(ds_app.port | default(ds_port)) }}'
     secure_port: '{{ instance.secure_port | default(ds_app.secure_port | default(ds_secure_port)) }}'
     replication_user: '{{ instance.replication_user | default(ds_app.replication_user | default(ds_replication_user)) }}'
     # server_uri: 'ldap://{{ inventory_hostname }}:{{ instance.port }}'
