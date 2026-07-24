@@ -16,12 +16,12 @@
     bind_dn: '{{ dm_dn }}'
     bind_pw: '{{ dm_password }}'
     server_uri: '{{ server_uri }}'
-    dn: 'cn=export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }},cn=export,cn=tasks,cn=config'
+    dn: 'cn=export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_facts["date_time"]["epoch"] }},cn=export,cn=tasks,cn=config'
     objectClass:
       - top
       - extensibleObject
     attributes:
-      cn: 'export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}'
+      cn: 'export_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_facts["date_time"]["epoch"] }}'
       ttl: 4
       nsfilename: '/var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
       nsinstance: '{{ suffix.db.0.name }}'

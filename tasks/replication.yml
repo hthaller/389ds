@@ -136,7 +136,7 @@
         src: '{{ tempdir_1.path }}/db_{{ instance.name }}_{{ suffix.name | b64encode }}_{{ suffix.db.0.name }}_export.ldif'
         dest: >-
           /var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name
-          | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif
+          | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_facts["date_time"]["epoch"] }}_export.ldif
         owner: dirsrv
         group: dirsrv
         mode: '0600'
@@ -151,7 +151,7 @@
         cmd: >-
           /usr/sbin/dsctl {{ instance.name }} ldif2db {{ suffix.db.0.name }}
           /var/lib/dirsrv/slapd-{{ instance.name }}/ldif/db_{{ instance.name }}_{{ suffix.name
-          | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_date_time.epoch }}_export.ldif
+          | b64encode }}_{{ suffix.db.0.name }}_{{ ansible_facts["date_time"]["epoch"] }}_export.ldif
         chdir: /etc/dirsrv
       changed_when: false
 
